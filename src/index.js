@@ -16,19 +16,13 @@ const PORT = process.env.PORT || 4000;
 const MONGODB_URI = process.env.MONGODB_URI;
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:3000';
 // Support multiple origins via comma-separated env
-const ORIGINS = CLIENT_ORIGIN.split(',').map((s) => s.trim()).filter(Boolean);
-const EXACTS = ORIGINS.filter((o) => !o.startsWith('*.'));
-const WILDCARDS = ORIGINS.filter((o) => o.startsWith('*.')).map((o) => o.slice(1)); // '.netlify.app'
-const LOCALHOST_RE = /^https?:\/\/(localhost|127\.0\.0\.1)(:\\d+)?$/i;
+// TEMP: Allow any origin (reflect request origin) while you debug CORS
+// WARNING: This is permissive. Restrict this in production to known origins.
 app.use(cors({
-  origin: (origin, cb) => {
-    if (!origin) return cb(null, true);
-    const allowed = EXACTS.includes(origin)
-      || WILDCARDS.some((suffix) => origin.endsWith(suffix))
-      || LOCALHOST_RE.test(origin);
-    return cb(null, allowed);
-  },
+  origin: true, // reflect the request Origin header
   credentials: true,
+  methods: ['GET','HEAD','PUT','PATCH','POST','DELETE'],
+  allowedHeaders: ['Content-Type','Authorization'],
 }));
 app.use(express.json({ limit: '1mb' }));
 app.use(morgan('dev'));
