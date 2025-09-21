@@ -9,6 +9,9 @@ import productRouter from './routes/products.js';
 import inquiryRouter from './routes/inquiries.js';
 import ordersRouter from './routes/orders.js';
 import usersRouter from './routes/users.js';
+import contactRouter from './routes/contact.js';
+import path from 'path';
+import fs from 'fs';
 
 const app = express();
 
@@ -34,6 +37,11 @@ app.use('/api/products', productRouter);
 app.use('/api/inquiries', inquiryRouter);
 app.use('/api/orders', ordersRouter);
 app.use('/api/users', usersRouter);
+app.use('/api/contact', contactRouter);
+
+// Static serving for uploaded product images
+try { fs.mkdirSync(path.join(process.cwd(), 'uploads'), { recursive: true }); } catch {}
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 // eslint-disable-next-line no-unused-vars
 app.use((err, _req, res, _next) => {
