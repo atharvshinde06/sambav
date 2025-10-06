@@ -36,6 +36,7 @@ const ProductSchema = new mongoose.Schema(
     name: { type: String, required: true },
     slug: { type: String, required: true, unique: true, index: true },
     category: { type: String, index: true },
+    categorySlug: { type: String, index: true },
     description: String,
     images: [String],
     unit: { type: String, default: 'per kg' },
@@ -46,6 +47,12 @@ const ProductSchema = new mongoose.Schema(
     portDetails: { type: PortDetailsSchema },
     deliveryDetails: { type: DeliveryDetailsSchema },
     certifications: [String],
+    specs: [
+      {
+        label: { type: String, trim: true },
+        value: { type: String, trim: true },
+      },
+    ],
   },
   { timestamps: true }
 );

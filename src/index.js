@@ -6,6 +6,7 @@ import mongoose from 'mongoose';
 
 import authRouter from './routes/auth.js';
 import productRouter from './routes/products.js';
+import categoryRouter from './routes/categories.js';
 import inquiryRouter from './routes/inquiries.js';
 import ordersRouter from './routes/orders.js';
 import usersRouter from './routes/users.js';
@@ -34,6 +35,7 @@ app.get('/api/health', (_req, res) => res.json({ ok: true, service: 'b2b-backend
 
 app.use('/api/auth', authRouter);
 app.use('/api/products', productRouter);
+app.use('/api/categories', categoryRouter);
 app.use('/api/inquiries', inquiryRouter);
 app.use('/api/orders', ordersRouter);
 app.use('/api/users', usersRouter);

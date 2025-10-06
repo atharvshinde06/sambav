@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import Product from '../models/Product.js';
+import Category from '../models/Category.js';
 import { requireAuth } from '../middleware/auth.js';
 import multer from 'multer';
 import path from 'path';
@@ -41,8 +42,17 @@ router.get('/:slug', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+function slugify(input = '') {
+  return String(input)
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-');
+}
+
 // Helper to normalize product payload from JSON body or multipart form fields
-function buildProductPayload(req) {
+async function buildProductPayload(req) {
   // Handle both JSON and multipart forms
   const b = req.body || {};
   const num = (v) => (v === undefined || v === '' || v === null ? undefined : Number(v));
@@ -54,6 +64,20 @@ function buildProductPayload(req) {
             : v.split(',')
           ).map(s=>String(s).trim()).filter(Boolean)
         : undefined);
+  const parseJSON = (v) => {
+    if (!v) return undefined;
+    if (typeof v === 'string') {
+      try {
+        const parsed = JSON.parse(v);
+        if (Array.isArray(parsed)) return parsed;
+        return undefined;
+      } catch {
+        return undefined;
+      }
+    }
+    if (Array.isArray(v)) return v;
+    return undefined;
+  };
 
   // Images via upload
   const uploaded = Array.isArray(req.files) ? req.files.filter(f => (f.mimetype||'').startsWith('image/')).map(f => `/uploads/${f.filename}`) : [];
@@ -63,10 +87,25 @@ function buildProductPayload(req) {
   if (b.image) images.push(b.image); // backward compat single url
   if (uploaded.length) images.push(...uploaded);
 
+  let categoryName = b.category || undefined;
+  let categorySlug = b.categorySlug || undefined;
+  const categoryId = b.categoryId;
+  if (!categoryName && categoryId) {
+    const category = await Category.findById(categoryId).lean();
+    if (category) {
+      categoryName = category.name;
+      categorySlug = category.slug;
+    }
+  }
+  if (categoryName && !categorySlug) {
+    categorySlug = slugify(categoryName);
+  }
+
   const payload = {
     name: b.name,
     slug: b.slug,
-    category: b.category || undefined,
+    category: categoryName,
+    categorySlug: categorySlug || undefined,
     description: b.description || undefined,
     unit: b.unit || undefined,
     images: images.length ? images : undefined,
@@ -99,6 +138,19 @@ function buildProductPayload(req) {
       notes: b['delivery_notes'] || undefined,
     } : undefined,
     certifications: arr(b['certifications']),
+    specs: (() => {
+      const parsed = parseJSON(b.specs);
+      if (!parsed) return undefined;
+      return parsed
+        .map((item) => {
+          if (!item) return null;
+          const label = typeof item.label === 'string' ? item.label.trim() : '';
+          const value = typeof item.value === 'string' ? item.value.trim() : '';
+          if (!label && !value) return null;
+          return { label, value };
+        })
+        .filter(Boolean);
+    })(),
   };
   return payload;
 }
@@ -106,7 +158,7 @@ function buildProductPayload(req) {
 // Accept images from any field name to be resilient
 router.post('/', requireAuth('admin'), upload.any(), async (req, res, next) => {
   try {
-    const payload = buildProductPayload(req);
+    const payload = await buildProductPayload(req);
     const p = await Product.create(payload);
     res.status(201).json({ product: p });
   } catch (e) { next(e); }
@@ -114,7 +166,7 @@ router.post('/', requireAuth('admin'), upload.any(), async (req, res, next) => {
 
 router.put('/:id', requireAuth('admin'), upload.any(), async (req, res, next) => {
   try {
-    const payload = buildProductPayload(req);
+    const payload = await buildProductPayload(req);
     const p = await Product.findByIdAndUpdate(req.params.id, payload, { new: true });
     if (!p) return res.status(404).json({ error: 'Not found' });
     res.json({ product: p });
